@@ -1,15 +1,19 @@
-const express = require('express');
-const router  = express.Router();
+// ui_service/src/routes/users.js
+const express  = require('express');
+const protect  = require('../util/protect');
 
-// Fetch current user stats
-router.get('/me/stats', (req, res) => {
-  // TODO: lookup real stats
+const router = express.Router();
+
+/* GET /api/users/me/stats  – protected */
+router.get('/me/stats', protect, (req, res) => {
+  // demo portfolio
   res.json({
     balance: 12345.67,
     holdings: [
-      { symbol: 'AAPL', shares: 10, avgCost: 150.0 },
-      { symbol: 'TSLA', shares: 5,  avgCost: 600.0 }
-    ]
+      { symbol: 'AAPL', shares: 10, avgCost: 150 },
+      { symbol: 'TSLA', shares: 5,  avgCost: 600 }
+    ],
+    who: req.claims.name
   });
 });
 

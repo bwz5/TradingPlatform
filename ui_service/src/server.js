@@ -1,29 +1,26 @@
-const express = require('express');
-const path    = require('path');
-
+// ui_service/src/server.js
 require('dotenv').config();
+const path    = require('path');
+const express = require('express');
 
-const authRouter   = require('./routes/auth');
-const usersRouter  = require('./routes/users');
-const tradesRouter = require('./routes/trades');
+const authR  = require('./routes/auth');
+const userR  = require('./routes/users');
+const tradeR = require('./routes/trades');
 
 const app = express();
 app.use(express.json());
 
-// Mount API routes
-app.use('/api/auth',   authRouter);    // POST /api/auth/register, /api/auth/login
-app.use('/api/users',  usersRouter);   // GET  /api/users/me/stats
-app.use('/api/trades', tradesRouter);  // POST /api/trades
+/* ----------------  API routes ---------------- */
+app.use('/api/auth',   authR);
+app.use('/api/users',  userR);
+app.use('/api/trades', tradeR);
 
-// Serve React build
-app.use(
-  express.static(path.join(__dirname, '../../client/build'))
-);
-app.get('*', (req, res) =>
+/* -------------  Serve React bundle ----------- */
+app.use(express.static(path.join(__dirname, '../../client/build')));
+app.get('*', (_, res) =>
   res.sendFile(path.join(__dirname, '../../client/build', 'index.html'))
 );
 
+/* ----------------  Start server -------------- */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`ui_service listening on http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`ui_service listening on :${PORT}`));
