@@ -10,10 +10,10 @@ import { apiFetch, clearAuth } from './auth';
 
 export default function Dashboard({ onLogout }) {
   const [stats, setStats] = useState({ balance: 0, holdings: [] });
-  const [order, setOrder] = useState({ symbol: '', qty: '' });
+  const [order, setOrder] = useState({ symbol: '', qty: '', side: 'buy' });
   const nav = useNavigate();
 
-  /* fetch portfolio */
+  /* ------------ load portfolio ---------------- */
   useEffect(() => {
     apiFetch('/api/users/me/stats')
       .then(async (res) => {
@@ -28,26 +28,34 @@ export default function Dashboard({ onLogout }) {
       });
   }, []);
 
-  /* form inputs */
-  const handleOrderChange = (e) =>
+  /* ------------ helpers ----------------------- */
+  const handleField = (e) =>
     setOrder((o) => ({ ...o, [e.target.name]: e.target.value }));
 
-  /* place trade */
   const placeOrder = async () => {
+    const { symbol, qty, side } = order;
+    if (!symbol || !qty) return alert('Fill symbol and quantity');
+
     const res = await apiFetch('/api/trades', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(order),
+      body: JSON.stringify({ symbol, qty, side }),
     });
     const data = await res.json();
     if (!res.ok) return alert(data.msg || 'Order failed');
+
     alert(data.msg);
+    // Refresh balance/holdings after a trade
+    apiFetch('/api/users/me/stats')
+      .then((r) => r.json())
+      .then(setStats);
   };
 
+  /* ------------ UI ---------------------------- */
   return (
     <Container sx={{ mt: 4 }}>
       <Grid container spacing={2}>
-        {/* Stats */}
+        {/* Stats panel */}
         <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 2 }}>
             <CardContent>
@@ -62,7 +70,7 @@ export default function Dashboard({ onLogout }) {
                     <ListItem key={h.symbol}>
                       <ListItemText
                         primary={`${h.symbol}: ${h.shares} shares`}
-                        secondary={`Avg cost: $${h.avgCost.toFixed(2)}`}
+                        secondary={`Avg cost: $${Number(h.avgCost).toFixed(2)}`}
                       />
                     </ListItem>
                   ))}
@@ -72,11 +80,12 @@ export default function Dashboard({ onLogout }) {
           </Card>
         </Grid>
 
-        {/* Trade */}
+        {/* Trade panel */}
         <Grid item xs={12} md={8}>
           <Card sx={{ borderRadius: 2 }}>
             <CardContent>
               <Typography variant="h6">Place Order</Typography>
+
               <Box
                 component="form"
                 onSubmit={(e) => {
@@ -94,7 +103,7 @@ export default function Dashboard({ onLogout }) {
                   label="Symbol"
                   name="symbol"
                   value={order.symbol}
-                  onChange={handleOrderChange}
+                  onChange={handleField}
                   required
                 />
                 <TextField
@@ -102,11 +111,33 @@ export default function Dashboard({ onLogout }) {
                   name="qty"
                   type="number"
                   value={order.qty}
-                  onChange={handleOrderChange}
+                  onChange={handleField}
                   required
                 />
-                <Button variant="contained" type="submit" sx={{ mt: 1 }}>
-                  Buy / Sell
+
+                {/* side selector buttons */}
+                <Button
+                  variant={order.side === 'buy' ? 'contained' : 'outlined'}
+                  onClick={() => setOrder((o) => ({ ...o, side: 'buy' }))}
+                  sx={{ borderRadius: 2, mt: 1 }}
+                >
+                  Buy
+                </Button>
+                <Button
+                  variant={order.side === 'sell' ? 'contained' : 'outlined'}
+                  color="secondary"
+                  onClick={() => setOrder((o) => ({ ...o, side: 'sell' }))}
+                  sx={{ borderRadius: 2, mt: 1 }}
+                >
+                  Sell
+                </Button>
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  sx={{ borderRadius: 2, mt: 1 }}
+                >
+                  Submit
                 </Button>
               </Box>
             </CardContent>
