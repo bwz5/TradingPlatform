@@ -46,8 +46,8 @@ void create_head(HEAD * s){
             exit(EXIT_FAILURE);
         }
 
-        if (SSL_CTX_use_certificate_file(s->ctx, "../security/server.crt", SSL_FILETYPE_PEM) <= 0 ||
-            SSL_CTX_use_PrivateKey_file(s->ctx, "../security/server.key", SSL_FILETYPE_PEM) <= 0) {
+        if (SSL_CTX_use_certificate_file(s->ctx, "./security/server.crt", SSL_FILETYPE_PEM) <= 0 ||
+            SSL_CTX_use_PrivateKey_file(s->ctx, "./security/server.key", SSL_FILETYPE_PEM) <= 0) {
             ERR_print_errors_fp(stderr);
             SSL_CTX_free(s->ctx);
             exit(EXIT_FAILURE);

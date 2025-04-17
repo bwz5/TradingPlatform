@@ -1,29 +1,23 @@
 # Compiler and flags
 CC     = gcc
-CFLAGS = -Wall -Wextra -std=c11
-
-ifdef SECURE 
-	CFLAGS += -DHTTPS_SUPPORT -I/opt/homebrew/opt/openssl@3/include -L/opt/homebrew/opt/openssl@3/lib -lssl -lcrypto
-endif 
-
+CFLAGS = -Wall -Wextra -std=c11 -DHTTPS_SUPPORT -I/opt/homebrew/opt/openssl@3/include -L/opt/homebrew/opt/openssl@3/lib -lssl -lcrypto
 # Target names 
 HEAD_TARGET = head 
 
 # Object files
-HEAD_OBJS = src/load_balancer/main_head.o \
-			src/load_balancer/head.o
+HEAD_OBJS = src/main.o \
+			src/head.o
 
-##### HEAD (LOAD BALANCER). Uses standard HTTP #####
 # Compile head into an executable 
 $(HEAD_TARGET): $(HEAD_OBJS)
 	$(CC) $(CFLAGS) -o $@ $(HEAD_OBJS)
 
 # Compile head.c -> head.o
-src/load_balancer/head.o: src/load_balancer/head.c src/load_balancer/head.h
+src/head.o: src/head.c src/head.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile main.c -> main_head.o
-src/load_balancer/main_head.o: src/load_balancer/main.c
+# Compile main.c -> main.o
+src/main.o: src/main.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean up build artifacts

@@ -9,6 +9,9 @@
 # .env file
 ui_service/.env
 
+# security files for OMS 
+gateway/security/*
+
 # Created by git when using merge tools for conflicts
 *.BACKUP.*
 *.BASE.*
