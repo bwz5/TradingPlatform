@@ -29,8 +29,8 @@ export default function Login({ onLogin }) {
       });
       const data = await res.json();
       if (res.ok) {
-        onLogin();
-        navigate('/dashboard');
+        // need to check if invalid username and password
+        
         // persist username
        localStorage.setItem('username', form.username);
        onLogin();
