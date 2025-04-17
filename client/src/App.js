@@ -1,38 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
-
-function Home() {
-  return <h2>Welcome Home!</h2>;
-}
-
-function Users() {
-  const [users, setUsers] = useState([]);
-  useEffect(() => {
-    fetch('/api/users')
-      .then(res => res.json())
-      .then(data => setUsers(data.users));
-  }, []);
-
-  return (
-    <div>
-      <h2>Users</h2>
-      <ul>
-        {users.map(u => <li key={u.id}>{u.name}</li>)}
-      </ul>
-    </div>
-  );
-}
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './Login';
+import Dashboard from './Dashboard';
 
 export default function App() {
+  const [isAuth, setIsAuth] = useState(false);
+
   return (
-    <div>
-      <nav>
-        <Link to="/">Home</Link> | <Link to="/users">Users</Link>
-      </nav>
+    <BrowserRouter>
       <Routes>
-        <Route index element={<Home />} />
-        <Route path="users" element={<Users />} />
+        <Route
+          path="/login"
+          element={<Login onLogin={() => setIsAuth(true)} />}
+        />
+        <Route
+          path="/dashboard"
+          element={isAuth ? <Dashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="*"
+          element={<Navigate to={isAuth ? '/dashboard' : '/login'} replace />}
+        />
       </Routes>
-    </div>
+    </BrowserRouter>
   );
 }
