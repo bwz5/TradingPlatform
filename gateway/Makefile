@@ -1,7 +1,6 @@
 # Compiler and flags
 CC     = gcc
-CFLAGS = -Wall -Wextra -std=c11 -DHTTPS_SUPPORT -I/opt/homebrew/opt/openssl@3/include -L/opt/homebrew/opt/openssl@3/lib -lssl -lcrypto
-# Target names 
+CFLAGS = -Wall -Wextra -std=c11 
 HEAD_TARGET = head 
 
 # Object files

@@ -12,3 +12,7 @@ JWT_SECRET=
 JWT_TTL=           # access token time‑to‑live
 PORT=
 DATABASE_URL=
+
+# NOTE:
+
+Remove lines 13,16, and 56 to use a non self-signed cert.

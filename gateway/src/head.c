@@ -1,101 +1,76 @@
 #include "head.h"
 
-int create_server(SERVER_CONNECTION * sc, const char * ip, int port){
-    sc->IP = strdup(ip);
+int create_server(SERVER_CONNECTION *sc, const char *ip, int port)
+{
+    sc->IP   = strdup(ip);
     sc->port = port;
-    
-    sc->serverfd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (sc->serverfd < 0){
-        printf("Error creating the socket for the server connection.\n");
-        free((void*)sc->IP); 
-        return -1; 
+    sc->serverfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sc->serverfd < 0) {
+        perror("socket");
+        free(sc->IP);
+        return -1;
     }
 
-    sc->server_addr.sin_family = AF_INET; 
-    sc->server_addr.sin_port = htons(port); 
+    memset(&sc->server_addr, 0, sizeof(sc->server_addr));
+    sc->server_addr.sin_family = AF_INET;
+    sc->server_addr.sin_port   = htons(port);
 
     if (inet_pton(AF_INET, ip, &sc->server_addr.sin_addr) <= 0) {
-        printf("Invalid address/Address not supported\n");
-        free((void*)sc->IP);
-        close(sc->serverfd); 
-        return -1; 
+        fprintf(stderr, "Invalid address %s\n", ip);
+        goto fail;
+    }
+    if (connect(sc->serverfd,
+                (struct sockaddr *)&sc->server_addr,
+                sizeof(sc->server_addr)) < 0) {
+        perror("connect");
+        goto fail;
     }
 
-    if (connect(sc->serverfd, (struct sockaddr *)&sc->server_addr, sizeof(sc->server_addr)) < 0){
-        printf("Connection failed\n");
-        free((void*)sc->IP);
-        close(sc->serverfd);
-        return -1; 
-    }
-
-    sc->weight = MEDIUM_WEIGHT; // TODO: Change weight later based on real info (CPU probably best)
-
+    sc->weight = MEDIUM_WEIGHT;
     return 0;
+
+fail:
+    free(sc->IP);
+    close(sc->serverfd);
+    return -1;
 }
 
-void create_head(HEAD * s){
-    #ifdef HTTPS_SUPPORT
-        SSL_library_init();
-        OpenSSL_add_all_algorithms();
-        SSL_load_error_strings();
 
-        s->ctx =  SSL_CTX_new(TLS_server_method());
-        if (s->ctx == NULL) {
-            ERR_print_errors_fp(stderr);
-            exit(EXIT_FAILURE);
-        }
+void create_head(HEAD *s)
+{
+    s->socketfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (s->socketfd < 0) { perror("socket"); exit(EXIT_FAILURE); }
 
-        if (SSL_CTX_use_certificate_file(s->ctx, "./security/server.crt", SSL_FILETYPE_PEM) <= 0 ||
-            SSL_CTX_use_PrivateKey_file(s->ctx, "./security/server.key", SSL_FILETYPE_PEM) <= 0) {
-            ERR_print_errors_fp(stderr);
-            SSL_CTX_free(s->ctx);
-            exit(EXIT_FAILURE);
-        }
-    #endif 
-    s->socketfd = socket(AF_INET, SOCK_STREAM, 0); 
+    memset(&s->server_address, 0, sizeof(s->server_address));
+    inet_aton(SERVER_IP, &s->server_address.sin_addr);
+    s->server_address.sin_port   = htons(SERVER_PORT_NUMBER);
+    s->server_address.sin_family = AF_INET;
 
-    inet_aton(SERVER_IP,(struct in_addr*)&s->server_address.sin_addr); 
-    s->server_address.sin_port = htons(SERVER_PORT_NUMBER); 
-    s->server_address.sin_family = AF_INET; 
-    
-    char ip_str[INET_ADDRSTRLEN];
-
-    // Convert to text string 
-    inet_ntop(AF_INET, &(s->server_address.sin_addr), ip_str, INET_ADDRSTRLEN);
-
-    printf("LoadBalancer Head started on %s:%i\n", ip_str, SERVER_PORT_NUMBER);
-
-    if (bind(s->socketfd, (struct sockaddr *)&s->server_address, sizeof(s->server_address)) < 0){
-        printf("Failure to bind the socketfd with the sockaddr_in struct\n"); 
-        #ifdef HTTPS_SUPPORT
-            SSL_CTX_free(s->ctx);
-        #endif 
-        exit(-1); 
+    if (bind(s->socketfd,
+             (struct sockaddr *)&s->server_address,
+             sizeof(s->server_address)) < 0) {
+        perror("bind");
+        exit(EXIT_FAILURE);
     }
 
-    // connection initializations 
+    printf("LoadBalancer Head listening on %s:%d\n",
+           SERVER_IP, SERVER_PORT_NUMBER);
 
-    pthread_mutex_init(&(s->connections_mutex), NULL); 
+    pthread_mutex_init(&s->connections_mutex, NULL);
 
-    s->server_connections = (SERVER_CONNECTION *)malloc(sizeof(SERVER_CONNECTION) * MAX_SERVER_CONNECTIONS);
-    s->current_weights = (int *)malloc(sizeof(int) * MAX_SERVER_CONNECTIONS);
+    s->server_connections = calloc(MAX_SERVER_CONNECTIONS,
+                                   sizeof(SERVER_CONNECTION));
+    s->current_weights    = calloc(MAX_SERVER_CONNECTIONS, sizeof(int));
 
-    if (s->server_connections == NULL || s->current_weights == NULL){
-        printf("Error using malloc, could not create load balancer.\n");
-        #ifdef HTTPS_SUPPORT
-            SSL_CTX_free(s->ctx);
-        #endif 
-        exit(-1); 
+    if (!s->server_connections || !s->current_weights) {
+        fprintf(stderr, "malloc failed\n");
+        exit(EXIT_FAILURE);
     }
-    //memset here to initialize an all zero array, as we assume in the round robin calculation initial values of zero
-    memset(s->current_weights, 0, MAX_SERVER_CONNECTIONS);
-
-    s->num_connections = 0;
-
-    // set the static weight sum to 0
-    s->static_weight_sum = 0 ;
+    s->num_connections    = 0;
+    s->static_weight_sum  = 0;
 }
+
 
 void add_server_connection(HEAD * s, const char * IP, int port){
     // create the server object 
@@ -131,111 +106,101 @@ void print_server_connections(HEAD * s){
     pthread_mutex_unlock(&s->connections_mutex);
 }
 
-void * run_head(void * arg){
-    HEAD * s = (HEAD *)arg;
-    // listen on the socketfd and set the maximum number of queued connections 
-    if (listen(s->socketfd, MAX_BACKLOG ) < 0){
-        printf("Failed to listen to the socket\n");
-        exit(-1); 
+void *run_head(void *arg) {
+    HEAD *s = (HEAD *)arg;
+
+    if (listen(s->socketfd, MAX_BACKLOG) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
     }
 
-    int clientfd; 
-    struct sockaddr_in client_addr; 
-    socklen_t client_len = sizeof(client_addr); 
-
-    while (1) {
-        clientfd = accept(s->socketfd, (struct sockaddr *)&client_addr, (socklen_t *)&client_len);
-
-        if (clientfd < 0){
-            printf("Failed to connect to the client\n"); 
-            exit(-1); 
-        }
-        
-        // fork() here to continue listening for other connections 
-        pid_t PID = fork(); 
-
-        if (PID != 0){
-            // parent
-            close(clientfd); // avoid race conditions on the fd 
-            continue; 
+    for (;;) {
+        struct sockaddr_in client_addr;
+        socklen_t client_len = sizeof(client_addr);
+        int clientfd = accept(
+            s->socketfd,
+            (struct sockaddr *)&client_addr,
+            &client_len
+        );
+        if (clientfd < 0) {
+            perror("accept");
+            continue;
         }
 
-        #ifdef HTTPS_SUPPORT
-            s->ssl = SSL_new(s->ctx);
-            SSL_set_fd(s->ssl, clientfd);
+        pid_t pid = fork();
+        if (pid != 0) {
+            /* Parent just closes client socket and loops */
+            close(clientfd);
+            continue;
+        }
 
-            // Perform the TLS handshake
-            if (SSL_accept(s->ssl) <= 0) {
-                ERR_print_errors_fp(stderr);
-                SSL_free(s->ssl);
-                close(clientfd);
-                continue;
+        /* ---- Child handles one request-response cycle ---- */
+        char buffer[4096];
+        ssize_t n;
+
+        /* 1) Smooth weighted round‑robin selection */
+        int chosen_idx = 0;
+        {
+            int current_max = INT32_MIN;
+            pthread_mutex_lock(&s->connections_mutex);
+            for (unsigned i = 0; i < s->num_connections; ++i) {
+                s->current_weights[i] += s->server_connections[i].weight;
+                if (s->current_weights[i] > current_max) {
+                    current_max = s->current_weights[i];
+                    chosen_idx  = i;
+                }
             }
-        #endif 
-
-        // handle the incoming request 
-        char buffer[4096] = {0}; 
-        size_t bytes_read; 
-
-        #ifdef HTTPS_SUPPORT
-            bytes_read = SSL_read(s->ssl, buffer, sizeof(buffer));       
-        #else 
-            bytes_read = recv(clientfd, buffer, sizeof(buffer), 0);
-        #endif 
-        if (bytes_read < 0) {
-            printf("Error reading the clientfd\n"); 
-            close(clientfd); // error on clientside or recv
-            exit(-1); // need to exit because we are in the child 
+            s->current_weights[chosen_idx] -= s->static_weight_sum;
+            pthread_mutex_unlock(&s->connections_mutex);
         }
 
-        printf("\nReceived from CLIENT: \n%s\n\n", buffer); 
+        SERVER_CONNECTION *backend = &s->server_connections[chosen_idx];
 
-        // SMOOTH WEIGHT ROUND ROBIN ALGORITHM
-        int current_max_weight = -214748364; // very small integer 
-        int chosen_idx = 0; 
+        /* 2) Open a fresh socket to the chosen backend */
+        int backendfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (backendfd < 0) {
+            perror("socket->backend");
+            close(clientfd);
+            exit(EXIT_FAILURE);
+        }
 
-        pthread_mutex_lock(&s->connections_mutex);
-        for (unsigned int i = 0; i < s->num_connections; i+= 1){
-            s->current_weights[i] = s->current_weights[i] + s->server_connections[i].weight; 
+        struct sockaddr_in be_addr = {0};
+        be_addr.sin_family = AF_INET;
+        be_addr.sin_port   = htons(backend->port);
+        if (inet_pton(AF_INET, backend->IP, &be_addr.sin_addr) <= 0) {
+            fprintf(stderr, "Invalid backend IP %s\n", backend->IP);
+            close(backendfd);
+            close(clientfd);
+            exit(EXIT_FAILURE);
+        }
 
-            if (current_max_weight < s->current_weights[i]){
-                current_max_weight = s->current_weights[i];
-                chosen_idx = i;
+        if (connect(backendfd, (struct sockaddr *)&be_addr, sizeof(be_addr)) < 0) {
+            perror("connect->backend");
+            close(backendfd);
+            close(clientfd);
+            exit(EXIT_FAILURE);
+        }
+
+        /* 3) Proxy entire client request to backend */
+        while ((n = recv(clientfd, buffer, sizeof(buffer), 0)) > 0) {
+            if (send(backendfd, buffer, n, 0) != n) {
+                perror("send->backend");
+                break;
             }
         }
-        // subtract total weights from our chosen index as last step of algorithm 
-        s->current_weights[chosen_idx] -= s->static_weight_sum;
-        pthread_mutex_unlock(&s->connections_mutex);
 
-        // Send the request to the best available server 
-        size_t bytes_sent = send(s->server_connections[chosen_idx].serverfd, buffer, bytes_read, 0);
-        if (bytes_sent != bytes_read){
-            printf("Error sending full message to the server.\n");
-            exit(-1);
+        /* 4) Proxy entire backend response back to client */
+        while ((n = recv(backendfd, buffer, sizeof(buffer), 0)) > 0) {
+            if (send(clientfd, buffer, n, 0) != n) {
+                perror("send->client");
+                break;
+            }
         }
 
-        // accept a response from the server (will wait for a response)
-        bytes_read = recv(s->server_connections[chosen_idx].serverfd, buffer, sizeof(buffer), 0);
-
-        // send the response to the client 
-        #ifdef HTTPS_SUPPORT
-            bytes_sent = SSL_write(s->ssl, buffer, bytes_read);
-        #else 
-            bytes_sent = send(clientfd, buffer, bytes_read, 0);
-        #endif 
-
-        if (bytes_sent != bytes_read){
-            printf("Error sending full message to the client.\n");
-            exit(-1);
-        }
-
-        // cleanup 
-        close(clientfd); 
-        #ifdef HTTPS_SUPPORT
-            SSL_shutdown(s->ssl);
-            SSL_free(s->ssl);
-        #endif 
-        exit(0);
+        /* 5) Clean up and exit child */
+        close(backendfd);
+        close(clientfd);
+        exit(EXIT_SUCCESS);
     }
 }
 

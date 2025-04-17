@@ -10,11 +10,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#ifdef HTTPS_SUPPORT 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#endif 
-
 #define SERVER_PORT_NUMBER 8080
 #define SERVER_IP "127.0.0.1"
 #define MAX_BACKLOG 100
@@ -63,14 +58,6 @@ typedef struct {
     unsigned int num_connections; 
 
     int static_weight_sum;
-
-    // SSL/TLS for HTTPS
-    #ifdef HTTPS_SUPPORT
-        // OpenSSL 
-        SSL_CTX *ctx; 
-        SSL * ssl; 
-    #endif 
-
 } HEAD; 
 
 /* 
