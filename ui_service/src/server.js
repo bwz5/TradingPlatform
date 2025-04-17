@@ -1,7 +1,8 @@
-// ui_service/src/server.js
 require('dotenv').config();
-const path    = require('path');
+require('./db');                       // ← initialise pool early
+
 const express = require('express');
+const path    = require('path');
 
 const authR  = require('./routes/auth');
 const userR  = require('./routes/users');
@@ -10,17 +11,14 @@ const tradeR = require('./routes/trades');
 const app = express();
 app.use(express.json());
 
-/* ----------------  API routes ---------------- */
 app.use('/api/auth',   authR);
 app.use('/api/users',  userR);
 app.use('/api/trades', tradeR);
 
-/* -------------  Serve React bundle ----------- */
+/* serve React */
 app.use(express.static(path.join(__dirname, '../../client/build')));
 app.get('*', (_, res) =>
-  res.sendFile(path.join(__dirname, '../../client/build', 'index.html'))
-);
+  res.sendFile(path.join(__dirname, '../../client/build', 'index.html')));
 
-/* ----------------  Start server -------------- */
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`ui_service listening on :${PORT}`));
+app.listen(process.env.PORT || 3000, () =>
+  console.log('ui_service listening'));

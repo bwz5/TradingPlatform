@@ -6,6 +6,9 @@
 # $ git config --global mergetool.keepBackup false
 *.orig
 
+# .env file
+ui_service/.env
+
 # Created by git when using merge tools for conflicts
 *.BACKUP.*
 *.BASE.*
