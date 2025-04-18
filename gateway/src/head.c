@@ -8,7 +8,7 @@ int create_server(SERVER_CONNECTION *sc, const char *ip, int port)
     sc->serverfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sc->serverfd < 0) {
         perror("socket");
-        free(sc->IP);
+        free((void*)sc->IP);
         return -1;
     }
 
@@ -31,7 +31,7 @@ int create_server(SERVER_CONNECTION *sc, const char *ip, int port)
     return 0;
 
 fail:
-    free(sc->IP);
+    free((void*)sc->IP);
     close(sc->serverfd);
     return -1;
 }
@@ -135,28 +135,28 @@ void *run_head(void *arg) {
         }
 
         /* ---- Child handles one request-response cycle ---- */
-        char buffer[4096];
+        char buffer[8192];
         ssize_t n;
 
-        /* 1) Smooth weighted round‑robin selection */
         int chosen_idx = 0;
-        {
-            int current_max = INT32_MIN;
-            pthread_mutex_lock(&s->connections_mutex);
-            for (unsigned i = 0; i < s->num_connections; ++i) {
-                s->current_weights[i] += s->server_connections[i].weight;
-                if (s->current_weights[i] > current_max) {
-                    current_max = s->current_weights[i];
-                    chosen_idx  = i;
-                }
+
+        // smooth weighted round robin selection
+        int current_max = INT32_MIN;
+        pthread_mutex_lock(&s->connections_mutex);
+        for (unsigned i = 0; i < s->num_connections; ++i) {
+            s->current_weights[i] += s->server_connections[i].weight;
+            if (s->current_weights[i] > current_max) {
+                current_max = s->current_weights[i];
+                chosen_idx  = i;
             }
-            s->current_weights[chosen_idx] -= s->static_weight_sum;
-            pthread_mutex_unlock(&s->connections_mutex);
         }
+        s->current_weights[chosen_idx] -= s->static_weight_sum;
+        pthread_mutex_unlock(&s->connections_mutex);
+        
 
         SERVER_CONNECTION *backend = &s->server_connections[chosen_idx];
 
-        /* 2) Open a fresh socket to the chosen backend */
+        // Open a fresh socket to the chosen backend 
         int backendfd = socket(AF_INET, SOCK_STREAM, 0);
         if (backendfd < 0) {
             perror("socket->backend");
@@ -181,7 +181,7 @@ void *run_head(void *arg) {
             exit(EXIT_FAILURE);
         }
 
-        /* 3) Proxy entire client request to backend */
+        // Proxy entire client request to backend 
         while ((n = recv(clientfd, buffer, sizeof(buffer), 0)) > 0) {
             if (send(backendfd, buffer, n, 0) != n) {
                 perror("send->backend");
@@ -189,7 +189,7 @@ void *run_head(void *arg) {
             }
         }
 
-        /* 4) Proxy entire backend response back to client */
+        // Proxy entire backend response back to client 
         while ((n = recv(backendfd, buffer, sizeof(buffer), 0)) > 0) {
             if (send(clientfd, buffer, n, 0) != n) {
                 perror("send->client");
@@ -197,7 +197,7 @@ void *run_head(void *arg) {
             }
         }
 
-        /* 5) Clean up and exit child */
+        // cleanup 
         close(backendfd);
         close(clientfd);
         exit(EXIT_SUCCESS);

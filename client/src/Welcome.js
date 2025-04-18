@@ -8,7 +8,7 @@ export default function Welcome() {
   return (
     <Container sx={{ mt: 8, textAlign: 'center' }}>
       <Typography variant="h3" gutterBottom>
-        Welcome to My Trading App
+        Welcome to the TradingPlatform
       </Typography>
       <Box mt={4} display="flex" justifyContent="center" gap={2}>
         <Button variant="contained" onClick={() => nav('/login')}>

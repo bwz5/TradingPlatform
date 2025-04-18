@@ -1,6 +1,4 @@
-// client/src/auth.js
-/* Simple helpers for token handling + auto‑header fetch */
-
+// local storage 
 export const getToken  = () => localStorage.getItem('token');
 export const setToken  = (t) => localStorage.setItem('token', t);
 export const clearAuth = () => localStorage.removeItem('token');
