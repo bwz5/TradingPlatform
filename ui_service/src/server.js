@@ -7,6 +7,7 @@ const path    = require('path');
 const authR  = require('./routes/auth');
 const userR  = require('./routes/users');
 const tradeR = require('./routes/trades');
+const marketR = require('./routes/market');
 
 const app = express();
 app.use(express.json());
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use('/api/auth',   authR);
 app.use('/api/users',  userR);
 app.use('/api/trades', tradeR);
+app.use('/api/stock-data', marketR);
 
 /* serve React */
 app.use(express.static(path.join(__dirname, '../../client/build')));

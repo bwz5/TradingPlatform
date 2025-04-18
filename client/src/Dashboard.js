@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch, clearAuth } from './auth';
+import StockChart from './StockChart';
 
 export default function Dashboard({ onLogout }) {
   const [stats, setStats] = useState({ balance: 0, holdings: [] });
@@ -201,6 +202,9 @@ export default function Dashboard({ onLogout }) {
               </Box>
             </CardContent>
           </Card>
+          
+          <StockChart />
+          
         </Grid>
       </Grid>
     </Container>
