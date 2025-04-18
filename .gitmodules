@@ -1,0 +1,6 @@
+[submodule "oms/lib/uWebSockets"]
+	path = oms/lib/uWebSockets
+	url = https://github.com/uNetworking/uWebSockets.git
+[submodule "oms/lib/libpqxx"]
+	path = oms/lib/libpqxx
+	url = https://github.com/jtv/libpqxx.git
