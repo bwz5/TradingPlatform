@@ -2,6 +2,9 @@
 
 ![TradingPlatform Architecture](/docs/Architecture.png "TradingPlatform Architecture").
 
+# User Interface  
+![User Interface](/docs/Dashboard.png "User Interface").
+
 # Note: 
 OMS contains:  
 * OMS
